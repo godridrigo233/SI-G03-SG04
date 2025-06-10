@@ -1,0 +1,59 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+
+# 1. Cargar el dataset
+data = pd.read_csv('SI_L10_KMEANS_DATASET.csv')
+
+# 2. Seleccionar dos características para graficar (puedes cambiar por otras)
+features = ['wins', 'kills']
+X = data[features]
+
+# 3. Escalar los datos
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# 4. Método del codo para encontrar el número óptimo de clusters
+sse = []
+K_range = range(1, 11)
+for k in K_range:
+    kmeans = KMeans(n_clusters=k, random_state=42)
+    kmeans.fit(X_scaled)
+    sse.append(kmeans.inertia_)
+plt.figure(figsize=(8, 6))
+plt.scatter(X_scaled[:, 0], X_scaled[:, 1], c='gray', alpha=0.6)
+plt.title('Datos Originales Escalados')
+plt.xlabel('Victorias (escaladas)')
+plt.ylabel('Asesinatos (escalados)')
+plt.grid(True)
+plt.show()
+# 5. Graficar el método del codo
+plt.figure(figsize=(8, 5))
+plt.plot(K_range, sse, marker='o')
+plt.title('Método del Codo')
+plt.xlabel('Número de Clusters')
+plt.ylabel('SSE (Inercia)')
+plt.grid(True)
+plt.show()
+
+# 6. Elegir número de clusters (ajusta según el codo observado)
+k_optimo = 4
+kmeans = KMeans(n_clusters=k_optimo, random_state=42)
+clusters = kmeans.fit_predict(X_scaled)
+
+# 7. Agregar los clusters al DataFrame
+data['cluster'] = clusters
+
+# 8. Visualizar los clusters con centroides en 2D
+plt.figure(figsize=(8, 6))
+plt.scatter(X_scaled[:, 0], X_scaled[:, 1], c=clusters, cmap='viridis', s=50)
+plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1],
+            c='red', marker='*', s=200, label='Centroides')
+plt.title('Segmentación de Jugadores con K-Means')
+plt.xlabel('Victorias (escaladas)')
+plt.ylabel('Asesinatos (escalados)')
+plt.legend()
+plt.grid(True)
+plt.show()
+
