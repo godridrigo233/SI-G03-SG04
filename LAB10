@@ -1,0 +1,97 @@
+from google.colab import files
+
+uploaded = files.upload()
+
+#Librerías necesarias
+
+import pandas as pd
+
+import numpy as np
+
+import matplotlib.pyplot as plt
+
+from sklearn.mixture import GaussianMixture
+
+from sklearn.preprocessing import StandardScaler
+
+from sklearn.decomposition import PCA
+
+filename = list(uploaded.keys())[0] # toma el nombre del archivo subido
+
+df = pd.read_csv(filename)
+
+#Seleccionar columnas relevantes
+
+features = ['open', 'high', 'low', 'close', 'adjclose', 'volume']
+
+X = df[features]
+
+scaler = StandardScaler()
+
+X_scaled = scaler.fit_transform(X)
+
+#Número óptimo de clusters usando BIC
+
+bic_scores = []
+
+n_components_range = range(1, 10)
+
+for n in n_components_range:
+
+gmm = GaussianMixture(n_components=n, covariance_type='full', random_state=42)
+
+ gmm.fit(X_scaled)
+
+ bic_scores.append(gmm.bic(X_scaled))
+
+#Visualizar el BIC
+
+plt.figure(figsize=(8, 5))
+
+plt.plot(n_components_range, bic_scores, marker='o', linestyle='-', color='navy')
+
+plt.title('Selección del número óptimo de clusters usando BIC')
+
+plt.xlabel('Número de Clusters')
+
+plt.ylabel('BIC')
+
+plt.grid(True)
+
+plt.show()
+
+#Número óptimo de clusters
+
+optimal_clusters = n_components_range[np.argmin(bic_scores)]
+
+print(f"Número óptimo de clusters según BIC: {optimal_clusters}")
+
+# Aplicar GMM con el número óptimo
+
+gmm = GaussianMixture(n_components=optimal_clusters, covariance_type='full',
+
+random_state=42)
+
+gmm.fit(X_scaled)
+
+labels = gmm.predict(X_scaled)
+
+pca = PCA(n_components=2)
+
+X_pca = pca.fit_transform(X_scaled)
+
+plt.figure(figsize=(10, 6))
+
+plt.scatter(X_pca[:, 0], X_pca[:, 1], c=labels, cmap='tab10', alpha=0.7)
+
+plt.title('Clusters identificados con GMM (visualización 2D con PCA)')
+
+plt.xlabel('Componente Principal 1')
+
+plt.ylabel('Componente Principal 2')
+
+plt.colorbar(label='Cluster')
+
+plt.grid(True)
+
+plt.show()
