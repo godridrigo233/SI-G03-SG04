@@ -1,0 +1,92 @@
+from google.colab import files
+uploaded = files.upload()
+
+import pandas as pd
+
+# Cargar el archivo CSV
+df = pd.read_csv("DATASET.csv")
+
+# Mostrar primeras filas y columnas
+print("Primeras filas del dataset:")
+print(df.head())
+
+print("\nColumnas:")
+print(df.columns)
+
+print("\nDistribución de clases:")
+print(df['Class'].value_counts())
+
+# === 2. PREPROCESAMIENTO ===
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.model_selection import train_test_split
+
+# Separar características y etiquetas
+X = df.drop(columns=['Class'])
+y = df['Class']
+
+# Normalizar características
+scaler = MinMaxScaler()
+X_scaled = scaler.fit_transform(X)
+
+# División en entrenamiento y prueba
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+
+# Entrenar solo con transacciones normales (clase 0)
+X_train_normal = X_train[y_train == 0]
+
+# === 3. ENTRENAMIENTO DEL AUTOENCODER ===
+import tensorflow as tf
+from tensorflow import keras
+
+input_dim = X_train.shape[1]
+encoding_dim = 14  # Puedes ajustarlo si deseas
+
+input_layer = keras.layers.Input(shape=(input_dim,))
+encoded = keras.layers.Dense(encoding_dim, activation='relu')(input_layer)
+decoded = keras.layers.Dense(input_dim, activation='sigmoid')(encoded)
+
+autoencoder = keras.models.Model(inputs=input_layer, outputs=decoded)
+autoencoder.compile(optimizer='adam', loss='mse')
+
+# Entrenamiento
+history = autoencoder.fit(
+    X_train_normal, X_train_normal,
+    epochs=50,
+    batch_size=32,
+    shuffle=True,
+    validation_data=(X_test[y_test == 0], X_test[y_test == 0])
+)
+
+
+
+# === 4. DETECCIÓN DE FRAUDE ===
+import numpy as np
+
+X_test_pred = autoencoder.predict(X_test)
+reconstruction_error = np.mean(np.abs(X_test - X_test_pred), axis=1)
+
+threshold = np.percentile(reconstruction_error[y_test == 0], 95)
+print("\nUmbral de error de reconstrucción (percentil 95):", threshold)
+
+y_pred = (reconstruction_error > threshold).astype(int)
+
+
+# === 5. EVALUACIÓN DEL MODELO ===
+from sklearn.metrics import classification_report, confusion_matrix
+import matplotlib.pyplot as plt
+
+print("\nReporte de clasificación:")
+print(classification_report(y_test, y_pred))
+
+print("Matriz de confusión:")
+print(confusion_matrix(y_test, y_pred))
+
+plt.figure(figsize=(10,5))
+plt.hist(reconstruction_error[y_test == 0], bins=50, alpha=0.6, label='Normal')
+plt.hist(reconstruction_error[y_test == 1], bins=50, alpha=0.6, label='Fraude')
+plt.axvline(threshold, color='red', linestyle='--', label='Umbral')
+plt.title("Distribución del Error de Reconstrucción")
+plt.xlabel("Error")
+plt.ylabel("Frecuencia")
+plt.legend()
+plt.show()
